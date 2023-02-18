@@ -19,35 +19,43 @@ import AbsLI
 import Prelude 
 import Data.Maybe
 import Memo
+import Data.Generics
 
 
 type Context k v = [(k,v)]                                
-type RContext = (VContext, FContext)
-type VContext = Context Ident Integer
 type FContext = Context Ident Function
+type EContext = Context Ident Exp
+type LContext = (EContext, FContext)
 
 
 evalP :: Program -> Integer
 evalP (Prog fs) =  eval ([],(updatecF [] fs)) (Call (Ident "main") [])   
 
-eval :: RContext -> Exp -> Integer
+eval :: LContext -> Exp -> Integer
 eval context x = case x of
     EAdd exp0 exp  -> eval context exp0  +  eval context exp
     ESub exp0 exp  -> eval context exp0  -  eval context exp
     EMul exp0 exp  -> eval context exp0  *  eval context exp
     EDiv exp0 exp  -> eval context exp0 `div` eval context exp
     EInt n         -> n
-    -- dica: considere alteracao na alternativa abaixo
-    EVar id        -> fromJust (lookupMemo id (fst context))
-    EIf e1 e2 e3   -> if ( eval context e1 /= 0 ) 
+    EIf e1 e2 e3   -> if (eval context e1 /= 0) 
                         then (eval context e2) 
                         else (eval context e3)
-    -- dica: considere alteracao na alternativa abaixo                  
-    Call id lexp   -> eval (paramBindings,contextFunctions) exp
-                          where Fun _ decls exp = fromJust (lookupMemo id ( snd context))
-                                paramBindings = zip decls (map (eval context) lexp)
-                                contextFunctions = snd context
+    EVar id        -> eval context (fromJust (lookupMemo id (fst context)))
+    Call id lexp   -> eval (paramBindings,contextFunctions) exp'
+                          where 
+                              (Fun _ args exp) = fromJust (lookupMemo id (snd context))
+                              paramBindings = zip args lexp
+                              contextFunctions = snd context
+                              exp' = everywhere (mkT $ transformExp paramBindings) exp
 
+transformExp :: EContext -> Exp -> Exp
+transformExp ctx exp = everywhere (mkT $ replaceId) exp
+    where
+        replaceId :: Exp -> Exp
+        replaceId (EVar id') =
+            fromMaybe (EVar id') $ lookupMemo id' ctx >>= \newExp -> Just $ replaceId newExp
+        replaceId e = e
 
 
 updatecF :: FContext -> [Function] -> FContext
@@ -101,6 +109,22 @@ fibo = Prog [Fun (Ident "main") [] (Call (Ident "fib") [EInt 8]),
 
 testCaseFibo = evalP fibo == 34
 
+add = Prog [Fun (Ident "main") [] (Call (Ident "add") [EInt 2, EInt 3]),
+            Fun (Ident "add") [Ident "x", Ident "y"]
+                      (EIf (EVar (Ident "y"))
+                           (Call (Ident "add") [EAdd (EVar (Ident "x")) (EInt 1), ESub (EVar (Ident "y")) (EInt 1)])
+                           (EVar (Ident "x")))
+           ]
+
+testCaseAdd = evalP add == 5
+
+
+square = Prog [Fun (Ident "main") [] (Call (Ident "square") [EInt 5]),
+               Fun (Ident "square") [Ident "n"]
+                                    (EMul (EVar (Ident "n")) (EVar (Ident "n")))]
+
+testCaseSquare = evalP square == 25
+
 -- testCaseSuiteResults deve ser true 
-testCaseSuiteResults  = testCaseFat && testCaseFibo
+testCaseSuiteResults  = testCaseFat && testCaseFibo && testCaseAdd && testCaseSquare
 

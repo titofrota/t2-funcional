@@ -4,13 +4,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- Dica Trabalho 2: descomentar abaixo se for usar SYB
--- {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 
 module AbsLI where
 
 -- Dica Trabalho 2: descomentar abaixo se for usar SYB
---import Data.Generics
+import Data.Generics
 
 import Prelude (Char, Double, Integer, String)
 import qualified Prelude as C (Eq, Ord, Show, Read)
@@ -18,7 +18,7 @@ import qualified Data.String
 
 -- Dica Trabalho 2: Ident tambem deve pertencer a type class Data se for usar SYB
 newtype Ident = Ident String
-  deriving (C.Eq, C.Ord, C.Show, C.Read, Data.String.IsString)
+  deriving (C.Eq, C.Ord, C.Show, C.Read, Data.String.IsString, Data)
 
 
 data Program = Prog [Function]
@@ -38,5 +38,15 @@ data Exp
     | Call Ident [Exp]
     | EInt Integer
     | EVar Ident
-  deriving (C.Eq, C.Ord, C.Show, C.Read)
+  deriving (C.Eq, C.Ord, C.Show, C.Read, Data)
 
+data Exp'
+    = EIf' Exp' Exp' Exp'
+    | EAdd' Exp' Exp'
+    | ESub' Exp' Exp'
+    | EMul' Exp' Exp'
+    | EDiv' Exp' Exp'
+    | Call' Ident [Exp']
+    | EInt' Integer
+    | EVar' Ident
+  deriving (C.Eq, C.Ord, C.Show, C.Read, Data)
